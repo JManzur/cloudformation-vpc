@@ -1,0 +1,301 @@
+AWSTemplateFormatVersion: "2010-09-09"
+
+Description: Basic VPC
+
+Metadata: 
+  AWS::CloudFormation::Interface: 
+    ParameterGroups: 
+      - Label: 
+          default: "Basic VPC Configuration"
+        Parameters: 
+          - ProjectName
+          - VPCCidr
+          - PublicCidrA
+          - PublicCidrB
+          - PublicCidrC
+          - PrivateCidrA
+          - PrivateCidrB
+          - PrivateCidrC
+
+Parameters:
+  ProjectName:
+    Description: Project Name
+    Type: String
+    Default: "Demo-VPC"
+  VPCCidr:
+    Description: VPC CIDR Block
+    Type: String
+    MinLength: '9'
+    MaxLength: '18'
+    Default: "10.49.0.0/16"
+    AllowedPattern: '(\d{1,3})\.(\d{1,3})\.(\d{1,3})\.(\d{1,3})/(\d{1,2})'
+    ConstraintDescription: must be a valid IP CIDR range of the form x.x.x.x/x.
+  PublicCidrA:
+    Description: Public Subnet CIDR Block - AZ-A
+    Type: String
+    MinLength: '9'
+    MaxLength: '18'
+    Default: "10.49.10.0/24"
+    AllowedPattern: '(\d{1,3})\.(\d{1,3})\.(\d{1,3})\.(\d{1,3})/(\d{1,2})'
+    ConstraintDescription: must be a valid IP CIDR range of the form x.x.x.x/x.
+  PublicCidrB:
+    Description: Public Subnet CIDR Block - AZ-B
+    Type: String
+    MinLength: '9'
+    MaxLength: '18'
+    Default: "10.49.11.0/24"
+    AllowedPattern: '(\d{1,3})\.(\d{1,3})\.(\d{1,3})\.(\d{1,3})/(\d{1,2})'
+    ConstraintDescription: must be a valid IP CIDR range of the form x.x.x.x/x.
+  PublicCidrC:
+    Description: Public Subnet CIDR Block - AZ-C
+    Type: String
+    MinLength: '9'
+    MaxLength: '18'
+    Default: "10.49.12.0/24"
+    AllowedPattern: '(\d{1,3})\.(\d{1,3})\.(\d{1,3})\.(\d{1,3})/(\d{1,2})'
+    ConstraintDescription: must be a valid IP CIDR range of the form x.x.x.x/x.
+  PrivateCidrA:
+    Description: Private Subnet CIDR Block - AZ-A
+    Type: String
+    MinLength: '9'
+    MaxLength: '18'
+    Default: "10.49.13.0/24"
+    AllowedPattern: '(\d{1,3})\.(\d{1,3})\.(\d{1,3})\.(\d{1,3})/(\d{1,2})'
+    ConstraintDescription: must be a valid IP CIDR range of the form x.x.x.x/x.
+  PrivateCidrB:
+    Description: Private Subnet CIDR Block - AZ-B
+    Type: String
+    MinLength: '9'
+    MaxLength: '18'
+    Default: "10.49.14.0/24"
+    AllowedPattern: '(\d{1,3})\.(\d{1,3})\.(\d{1,3})\.(\d{1,3})/(\d{1,2})'
+    ConstraintDescription: must be a valid IP CIDR range of the form x.x.x.x/x.
+  PrivateCidrC:
+    Description: Private Subnet CIDR Block- AZ-C
+    Type: String
+    MinLength: '9'
+    MaxLength: '18'
+    Default: "10.49.15.0/24"
+    AllowedPattern: '(\d{1,3})\.(\d{1,3})\.(\d{1,3})\.(\d{1,3})/(\d{1,2})'
+    ConstraintDescription: must be a valid IP CIDR range of the form x.x.x.x/x.
+
+Resources:
+  # VPC Definition:
+  VPC:
+    Type: AWS::EC2::VPC
+    Properties:
+      CidrBlock: !Ref VPCCidr
+      EnableDnsSupport: true
+      EnableDnsHostnames: true
+      Tags:
+      - Key: Name
+        Value:  !Join ['', [!Ref ProjectName, "-VPC" ]]
+
+  # Internet Gateway Definition:
+  InternetGateway:
+    Type: AWS::EC2::InternetGateway
+    Properties:
+      Tags:
+        - Key: Name
+          Value: !Join ['', [!Ref ProjectName, "-IG" ]]
+
+  # Internet Gateway Attachment:
+  IGAttachment:
+    Type: AWS::EC2::VPCGatewayAttachment
+    DependsOn:
+      - VPC
+      - InternetGateway
+    Properties:
+      VpcId: !Ref VPC
+      InternetGatewayId: !Ref InternetGateway 
+  
+  # Public Subnet AZ-A
+  PublicSubnetA:
+    Type: AWS::EC2::Subnet
+    Properties:
+      VpcId: !Ref VPC
+      CidrBlock: !Ref PublicCidrA
+      AvailabilityZone: !Select [ 0, !GetAZs ]    # Get the first AZ in the list       
+      Tags:
+      - Key: Name
+        Value:  !Join ['', [!Ref ProjectName, "-Public-A" ]]
+
+  # Public Subnet AZ-B
+  PublicSubnetB:
+    Type: AWS::EC2::Subnet
+    Properties:
+      VpcId: !Ref VPC
+      CidrBlock: !Ref PublicCidrB
+      AvailabilityZone: !Select [ 1, !GetAZs ]    # Get the second AZ in the list       
+      Tags:
+      - Key: Name
+        Value:  !Join ['', [!Ref ProjectName, "-Public-B" ]]
+
+  # Public Subnet AZ-C
+  PublicSubnetC:
+    Type: AWS::EC2::Subnet
+    Properties:
+      VpcId: !Ref VPC
+      CidrBlock: !Ref PublicCidrC
+      AvailabilityZone: !Select [ 2, !GetAZs ]    # Get the third AZ in the list       
+      Tags:
+      - Key: Name
+        Value:  !Join ['', [!Ref ProjectName, "-Public-C" ]]
+
+  # Private Subnet AZ-A
+  PrivateSubnetA:
+    Type: AWS::EC2::Subnet
+    Properties:
+      VpcId: !Ref VPC
+      CidrBlock: !Ref PrivateCidrA
+      AvailabilityZone: !Select [ 0, !GetAZs ]    # Get the first AZ in the list 
+      Tags:
+      - Key: Name
+        Value:  !Join ['', [!Ref ProjectName, "-Private-A" ]]
+
+  # Private Subnet AZ-B
+  PrivateSubnetB:
+    Type: AWS::EC2::Subnet
+    Properties:
+      VpcId: !Ref VPC
+      CidrBlock: !Ref PrivateCidrB
+      AvailabilityZone: !Select [ 1, !GetAZs ]    # Get the second AZ in the list 
+      Tags:
+      - Key: Name
+        Value:  !Join ['', [!Ref ProjectName, "-Private-B" ]]
+
+
+  # Private Subnet AZ-C
+  PrivateSubnetC:
+    Type: AWS::EC2::Subnet
+    Properties:
+      VpcId: !Ref VPC
+      CidrBlock: !Ref PrivateCidrC
+      AvailabilityZone: !Select [ 2, !GetAZs ]    # Get the second AZ in the list 
+      Tags:
+      - Key: Name
+        Value:  !Join ['', [!Ref ProjectName, "-Private-C" ]]
+
+  # Public Route table:
+  PublicRouteTable:
+    Type: AWS::EC2::RouteTable
+    Properties:
+      VpcId: !Ref VPC
+      Tags:
+      - Key: Name
+        Value:  !Join ['', [!Ref ProjectName, "-Public-RT" ]]
+  PublicRoute1:
+    Type: AWS::EC2::Route
+    DependsOn: IGAttachment
+    Properties:
+      RouteTableId: !Ref PublicRouteTable
+      DestinationCidrBlock: 0.0.0.0/0
+      GatewayId: !Ref InternetGateway
+
+  # NAT Gateway Definition:
+  NATGateway:
+    Type: AWS::EC2::NatGateway
+    Properties:
+      AllocationId: !GetAtt ElasticIPAddress.AllocationId #Get EIP
+      SubnetId: !Ref PublicSubnetA
+      Tags:
+      - Key: Name
+        Value:  !Join ['', [!Ref ProjectName, "-NGW" ]]
+  ElasticIPAddress:
+    Type: AWS::EC2::EIP
+    Properties:
+      Domain: VPC
+
+  # Private route table:
+  PrivateRouteTable:
+    Type: AWS::EC2::RouteTable
+    Properties:
+      VpcId: !Ref VPC
+      Tags:
+      - Key: Name
+        Value:  !Join ['', [!Ref ProjectName, "-Private-RT" ]]
+  PrivateRoute1:
+    Type: AWS::EC2::Route
+    Properties:
+      RouteTableId: !Ref PrivateRouteTable
+      DestinationCidrBlock: 0.0.0.0/0
+      NatGatewayId: !Ref NATGateway
+
+  # Attach Public subnets to Public route table:   
+  PublicSubnetARouteTableAssociation:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties:
+      SubnetId: !Ref PublicSubnetA
+      RouteTableId: !Ref PublicRouteTable
+  PublicSubnetBRouteTableAssociation:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties:
+      SubnetId: !Ref PublicSubnetB
+      RouteTableId: !Ref PublicRouteTable
+  PublicSubnetCRouteTableAssociation:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties:
+      SubnetId: !Ref PublicSubnetC
+      RouteTableId: !Ref PublicRouteTable
+
+  # Attach Private subnets to Private route table:   
+  PrivateSubnetARouteTableAssociation:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties:
+      SubnetId: !Ref PrivateSubnetA
+      RouteTableId: !Ref PrivateRouteTable
+  PrivateSubnetBRouteTableAssociation:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties:
+      SubnetId: !Ref PrivateSubnetB
+      RouteTableId: !Ref PrivateRouteTable
+  PrivateSubnetCRouteTableAssociation:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties:
+      SubnetId: !Ref PrivateSubnetC
+      RouteTableId: !Ref PrivateRouteTable
+
+  # IAM Role - Allow VPC to send logs to CloudWatch
+  Role:
+    Type: AWS::IAM::Role
+    Properties:
+      Tags:
+        - Key: Name
+          Value:  !Join ['', [!Ref ProjectName, "-FlowLogs-Role" ]]
+      AssumeRolePolicyDocument:
+        Version: 2012-10-17
+        Statement:
+        - Effect: Allow
+          Principal:
+            Service: vpc-flow-logs.amazonaws.com
+          Action: sts:AssumeRole
+      RoleName: !Sub ${ProjectName}-VPCLogsRole
+      Policies:
+      - PolicyName: !Sub ${ProjectName}-VPCLogsPolicy
+        PolicyDocument:
+          Version: 2012-10-17
+          Statement:
+          - Effect: Allow
+            Action:
+            - logs:CreateLogStream
+            - logs:PutLogEvents
+            - logs:DescribeLogGroups
+            - logs:DescribeLogStreams
+            Resource: !GetAtt LogGroup.Arn
+
+  # Create log group: 
+  LogGroup:
+    Type: AWS::Logs::LogGroup
+    Properties:
+      RetentionInDays: 14
+      LogGroupName: !Sub /vpcflowlogs/${ProjectName}
+
+  # Enable VPC Flow Logs:
+  FlowLog:
+    Type: AWS::EC2::FlowLog
+    Properties:
+      DeliverLogsPermissionArn: !GetAtt Role.Arn
+      LogGroupName: !Ref LogGroup
+      ResourceId: !Ref VPC
+      ResourceType: VPC
+      TrafficType: ALL

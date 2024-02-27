@@ -1,0 +1,597 @@
+AWSTemplateFormatVersion: "2010-09-09"
+
+Description: "Deploy a VPC with public and private subnets across three Availability Zones and S3 bucket for VPC Flow Logs."
+
+Metadata: 
+  AWS::CloudFormation::Interface: 
+    ParameterGroups: 
+      - Label: 
+          default: "VPC Definition"
+        Parameters: 
+          - pPrefix
+          - pEnvironmentName
+          - pVPCCidr
+          - pPublicCidrA
+          - pPublicCidrB
+          - pPublicCidrC
+          - pPrivateCidrA
+          - pPrivateCidrB
+          - pPrivateCidrC
+          - pCreatedByTagValue
+          - pManagedByTagValue
+
+Parameters:
+  pPrefix:
+    Description: Prefix for the VPC and its resources
+    Type: String
+    Default: "gh"
+  pEnvironmentName:
+    Description: Environment name that will pre used to prefix resouces that are created as part of this template
+    Type: String
+    Default: "dev"
+  pVPCCidr:
+    Description: VPC CIDR Block
+    Type: String
+    MinLength: '9'
+    MaxLength: '18'
+    Default: "10.49.0.0/16"
+    AllowedPattern: '(\d{1,3})\.(\d{1,3})\.(\d{1,3})\.(\d{1,3})/(\d{1,2})'
+    ConstraintDescription: must be a valid IP CIDR range of the form x.x.x.x/x.
+  # Public Subnet CIDR Blocks
+  pPublicCidrA:
+    Description: Public Subnet CIDR Block - AZ-A
+    Type: String
+    MinLength: '9'
+    MaxLength: '18'
+    Default: "10.49.10.0/24"
+    AllowedPattern: '(\d{1,3})\.(\d{1,3})\.(\d{1,3})\.(\d{1,3})/(\d{1,2})'
+    ConstraintDescription: must be a valid IP CIDR range of the form x.x.x.x/x.
+  pPublicCidrB:
+    Description: Public Subnet CIDR Block - AZ-B
+    Type: String
+    MinLength: '9'
+    MaxLength: '18'
+    Default: "10.49.11.0/24"
+    AllowedPattern: '(\d{1,3})\.(\d{1,3})\.(\d{1,3})\.(\d{1,3})/(\d{1,2})'
+    ConstraintDescription: must be a valid IP CIDR range of the form x.x.x.x/x.
+  pPublicCidrC:
+    Description: Public Subnet CIDR Block - AZ-C
+    Type: String
+    MinLength: '9'
+    MaxLength: '18'
+    Default: "10.49.12.0/24"
+    AllowedPattern: '(\d{1,3})\.(\d{1,3})\.(\d{1,3})\.(\d{1,3})/(\d{1,2})'
+    ConstraintDescription: must be a valid IP CIDR range of the form x.x.x.x/x.
+  # Private Subnet CIDR Blocks
+  pPrivateCidrA:
+    Description: Private Subnet CIDR Block - AZ-A
+    Type: String
+    MinLength: '9'
+    MaxLength: '18'
+    Default: "10.49.13.0/24"
+    AllowedPattern: '(\d{1,3})\.(\d{1,3})\.(\d{1,3})\.(\d{1,3})/(\d{1,2})'
+    ConstraintDescription: must be a valid IP CIDR range of the form x.x.x.x/x.
+  pPrivateCidrB:
+    Description: Private Subnet CIDR Block - AZ-B
+    Type: String
+    MinLength: '9'
+    MaxLength: '18'
+    Default: "10.49.14.0/24"
+    AllowedPattern: '(\d{1,3})\.(\d{1,3})\.(\d{1,3})\.(\d{1,3})/(\d{1,2})'
+    ConstraintDescription: must be a valid IP CIDR range of the form x.x.x.x/x.
+  pPrivateCidrC:
+    Description: Private Subnet CIDR Block- AZ-C
+    Type: String
+    MinLength: '9'
+    MaxLength: '18'
+    Default: "10.49.15.0/24"
+    AllowedPattern: '(\d{1,3})\.(\d{1,3})\.(\d{1,3})\.(\d{1,3})/(\d{1,2})'
+    ConstraintDescription: must be a valid IP CIDR range of the form x.x.x.x/x.
+  # Database Subnet CIDR Blocks
+  pDatabaseCidrA:
+    Description: Database Subnet CIDR Block - AZ-A
+    Type: String
+    MinLength: '9'
+    MaxLength: '18'
+    Default: "10.49.20.0/24"
+    AllowedPattern: '(\d{1,3})\.(\d{1,3})\.(\d{1,3})\.(\d{1,3})/(\d{1,2})'
+    ConstraintDescription: must be a valid IP CIDR range of the form x.x.x.x/x.
+  pDatabaseCidrB:
+    Description: Database Subnet CIDR Block - AZ-B
+    Type: String
+    MinLength: '9'
+    MaxLength: '18'
+    Default: "10.49.21.0/24"
+    AllowedPattern: '(\d{1,3})\.(\d{1,3})\.(\d{1,3})\.(\d{1,3})/(\d{1,2})'
+    ConstraintDescription: must be a valid IP CIDR range of the form x.x.x.x/x.
+  pDatabaseCidrC:
+    Description: Database Subnet CIDR Block - AZ-C
+    Type: String
+    MinLength: '9'
+    MaxLength: '18'
+    Default: "10.49.22.0/24"
+    AllowedPattern: '(\d{1,3})\.(\d{1,3})\.(\d{1,3})\.(\d{1,3})/(\d{1,2})'
+    ConstraintDescription: must be a valid IP CIDR range of the form x.x.x.x/x.
+  pCreatedByTagValue:
+    Description: Value for the CreatedBy tag
+    Type: String
+    Default: "CloudFormation"
+  pManagedByTagValue:
+    Description: Value for the ManagedBy tag
+    Type: String
+    Default: "CloudFormation"
+
+Resources:
+  # VPC Definition:
+  rVPC:
+    Type: AWS::EC2::VPC
+    Properties:
+      CidrBlock: !Ref pVPCCidr
+      EnableDnsSupport: true
+      EnableDnsHostnames: true
+      Tags:
+      - Key: Name
+        Value:  !Join ['', [!Ref pPrefix, "-", !Ref pEnvironmentName, "-vpc" ]]
+      - Key: CreatedBy
+        Value: !Ref pCreatedByTagValue
+      - Key: ManagedBy
+        Value: !Ref pManagedByTagValue
+  
+  # Internet Gateway Definition:
+  rInternetGateway:
+    Type: AWS::EC2::InternetGateway
+    Properties:
+      Tags:
+        - Key: Name
+          Value: !Join ['', [!Ref pPrefix, "-ig" ]]
+        - Key: CreatedBy
+          Value: !Ref pCreatedByTagValue
+        - Key: ManagedBy
+          Value: !Ref pManagedByTagValue
+
+  # Internet Gateway Attachment:
+  rIGAttachment:
+    Type: AWS::EC2::VPCGatewayAttachment
+    DependsOn:
+      - rVPC
+      - rInternetGateway
+    Properties:
+      VpcId: !Ref rVPC
+      InternetGatewayId: !Ref rInternetGateway 
+  
+  # Public Subnet AZ-A
+  rPublicSubnetA:
+    Type: AWS::EC2::Subnet
+    Properties:
+      VpcId: !Ref rVPC
+      CidrBlock: !Ref pPublicCidrA
+      AvailabilityZone: !Select [ 0, !GetAZs ]    # Get the first AZ in the list       
+      Tags:
+      - Key: Name
+        Value:  !Join ['', [!Ref pPrefix, "-public-az-a" ]]
+      - Key: CreatedBy
+        Value: !Ref pCreatedByTagValue
+      - Key: ManagedBy
+        Value: !Ref pManagedByTagValue
+
+  # Public Subnet AZ-B
+  rPublicSubnetB:
+    Type: AWS::EC2::Subnet
+    Properties:
+      VpcId: !Ref rVPC
+      CidrBlock: !Ref pPublicCidrB
+      AvailabilityZone: !Select [ 1, !GetAZs ]    # Get the second AZ in the list       
+      Tags:
+      - Key: Name
+        Value:  !Join ['', [!Ref pPrefix, "-public-az-b" ]]
+      - Key: CreatedBy
+        Value: !Ref pCreatedByTagValue
+      - Key: ManagedBy
+        Value: !Ref pManagedByTagValue
+
+  # Public Subnet AZ-C
+  rPublicSubnetC:
+    Type: AWS::EC2::Subnet
+    Properties:
+      VpcId: !Ref rVPC
+      CidrBlock: !Ref pPublicCidrC
+      AvailabilityZone: !Select [ 2, !GetAZs ]    # Get the third AZ in the list       
+      Tags:
+      - Key: Name
+        Value:  !Join ['', [!Ref pPrefix, "-public-az-c" ]]
+      - Key: CreatedBy
+        Value: !Ref pCreatedByTagValue
+      - Key: ManagedBy
+        Value: !Ref pManagedByTagValue
+
+  # Private Subnet AZ-A
+  rPrivateSubnetA:
+    Type: AWS::EC2::Subnet
+    Properties:
+      VpcId: !Ref rVPC
+      CidrBlock: !Ref pPrivateCidrA
+      AvailabilityZone: !Select [ 0, !GetAZs ]    # Get the first AZ in the list 
+      Tags:
+      - Key: Name
+        Value:  !Join ['', [!Ref pPrefix, "-private-az-a" ]]
+      - Key: CreatedBy
+        Value: !Ref pCreatedByTagValue
+      - Key: ManagedBy
+        Value: !Ref pManagedByTagValue
+
+  # Private Subnet AZ-B
+  rPrivateSubnetB:
+    Type: AWS::EC2::Subnet
+    Properties:
+      VpcId: !Ref rVPC
+      CidrBlock: !Ref pPrivateCidrB
+      AvailabilityZone: !Select [ 1, !GetAZs ]    # Get the second AZ in the list 
+      Tags:
+      - Key: Name
+        Value:  !Join ['', [!Ref pPrefix, "-private-az-b" ]]
+      - Key: CreatedBy
+        Value: !Ref pCreatedByTagValue
+      - Key: ManagedBy
+        Value: !Ref pManagedByTagValue
+
+  # Private Subnet AZ-C
+  rPrivateSubnetC:
+    Type: AWS::EC2::Subnet
+    Properties:
+      VpcId: !Ref rVPC
+      CidrBlock: !Ref pPrivateCidrC
+      AvailabilityZone: !Select [ 2, !GetAZs ]    # Get the second AZ in the list 
+      Tags:
+      - Key: Name
+        Value:  !Join ['', [!Ref pPrefix, "-private-az-c" ]]
+      - Key: CreatedBy
+        Value: !Ref pCreatedByTagValue
+      - Key: ManagedBy
+        Value: !Ref pManagedByTagValue
+
+  # Database Subnet AZ-A
+  rDatabaseSubnetA:
+    Type: AWS::EC2::Subnet
+    Properties:
+      VpcId: !Ref rVPC
+      CidrBlock: !Ref pDatabaseCidrA
+      AvailabilityZone: !Select [ 0, !GetAZs ]    # Get the first AZ in the list       
+      Tags:
+      - Key: Name
+        Value:  !Join ['', [!Ref pPrefix, "-database-az-a" ]]
+      - Key: CreatedBy
+        Value: !Ref pCreatedByTagValue
+      - Key: ManagedBy
+        Value: !Ref pManagedByTagValue
+
+  # Database Subnet AZ-B
+  rDatabaseSubnetB:
+    Type: AWS::EC2::Subnet
+    Properties:
+      VpcId: !Ref rVPC
+      CidrBlock: !Ref pDatabaseCidrB
+      AvailabilityZone: !Select [ 1, !GetAZs ]    # Get the second AZ in the list       
+      Tags:
+      - Key: Name
+        Value:  !Join ['', [!Ref pPrefix, "-database-az-b" ]]
+      - Key: CreatedBy
+        Value: !Ref pCreatedByTagValue
+      - Key: ManagedBy
+        Value: !Ref pManagedByTagValue
+
+  # Database Subnet AZ-C
+  rDatabaseSubnetC:
+    Type: AWS::EC2::Subnet
+    Properties:
+      VpcId: !Ref rVPC
+      CidrBlock: !Ref pDatabaseCidrC
+      AvailabilityZone: !Select [ 2, !GetAZs ]    # Get the third AZ in the list       
+      Tags:
+      - Key: Name
+        Value:  !Join ['', [!Ref pPrefix, "-database-az-c" ]]
+      - Key: CreatedBy
+        Value: !Ref pCreatedByTagValue
+      - Key: ManagedBy
+        Value: !Ref pManagedByTagValue
+
+  # Public Route table:
+  rPublicRouteTable:
+    Type: AWS::EC2::RouteTable
+    Properties:
+      VpcId: !Ref rVPC
+      Tags:
+      - Key: Name
+        Value:  !Join ['', [!Ref pPrefix, "-public-rt" ]]
+      - Key: CreatedBy
+        Value: !Ref pCreatedByTagValue
+      - Key: ManagedBy
+        Value: !Ref pManagedByTagValue
+
+  rPublicRoute:
+    Type: AWS::EC2::Route
+    DependsOn: rIGAttachment
+    Properties:
+      RouteTableId: !Ref rPublicRouteTable
+      DestinationCidrBlock: 0.0.0.0/0
+      GatewayId: !Ref rInternetGateway
+
+  # NAT Gateway Definition:
+  rNATGatewayA:
+    Type: AWS::EC2::NatGateway
+    Properties:
+      AllocationId: !GetAtt rElasticIPAddressA.AllocationId #Get EIP
+      SubnetId: !Ref rPublicSubnetA
+      Tags:
+      - Key: Name
+        Value:  !Join ['', [!Ref pPrefix, "-ngw-a" ]]
+      - Key: CreatedBy
+        Value: !Ref pCreatedByTagValue
+      - Key: ManagedBy
+        Value: !Ref pManagedByTagValue
+
+  rElasticIPAddressA:
+    Type: AWS::EC2::EIP
+    Properties:
+      Domain: VPC
+
+  rNATGatewayB:
+    Type: AWS::EC2::NatGateway
+    Properties:
+      AllocationId: !GetAtt rElasticIPAddressB.AllocationId #Get EIP
+      SubnetId: !Ref rPublicSubnetB
+      Tags:
+      - Key: Name
+        Value:  !Join ['', [!Ref pPrefix, "-ngw-b" ]]
+      - Key: CreatedBy
+        Value: !Ref pCreatedByTagValue
+      - Key: ManagedBy
+        Value: !Ref pManagedByTagValue
+
+  rElasticIPAddressB:
+    Type: AWS::EC2::EIP
+    Properties:
+      Domain: VPC
+
+  rNATGatewayC:
+    Type: AWS::EC2::NatGateway
+    Properties:
+      AllocationId: !GetAtt rElasticIPAddressC.AllocationId #Get EIP
+      SubnetId: !Ref rPublicSubnetC
+      Tags:
+      - Key: Name
+        Value:  !Join ['', [!Ref pPrefix, "-ngw-c" ]]
+      - Key: CreatedBy
+        Value: !Ref pCreatedByTagValue
+      - Key: ManagedBy
+        Value: !Ref pManagedByTagValue
+
+  rElasticIPAddressC:
+    Type: AWS::EC2::EIP
+    Properties:
+      Domain: VPC
+
+  # Private route table:
+  rPrivateRouteTableA:
+    Type: AWS::EC2::RouteTable
+    Properties:
+      VpcId: !Ref rVPC
+      Tags:
+      - Key: Name
+        Value:  !Join ['', [!Ref pPrefix, "-private-rt-a" ]]
+      - Key: CreatedBy
+        Value: !Ref pCreatedByTagValue
+      - Key: ManagedBy
+        Value: !Ref pManagedByTagValue
+
+  rPrivateRouteA:
+    Type: AWS::EC2::Route
+    Properties:
+      RouteTableId: !Ref rPrivateRouteTableA
+      DestinationCidrBlock: 0.0.0.0/0
+      NatGatewayId: !Ref rNATGatewayA
+
+  rPrivateRouteTableB:
+    Type: AWS::EC2::RouteTable
+    Properties:
+      VpcId: !Ref rVPC
+      Tags:
+      - Key: Name
+        Value:  !Join ['', [!Ref pPrefix, "-private-rt-a" ]]
+      - Key: CreatedBy
+        Value: !Ref pCreatedByTagValue
+      - Key: ManagedBy
+        Value: !Ref pManagedByTagValue
+
+  rPrivateRouteB:
+    Type: AWS::EC2::Route
+    Properties:
+      RouteTableId: !Ref rPrivateRouteTableB
+      DestinationCidrBlock: 0.0.0.0/0
+      NatGatewayId: !Ref rNATGatewayB
+
+  rPrivateRouteTableC:
+    Type: AWS::EC2::RouteTable
+    Properties:
+      VpcId: !Ref rVPC
+      Tags:
+      - Key: Name
+        Value:  !Join ['', [!Ref pPrefix, "-private-rt-a" ]]
+      - Key: CreatedBy
+        Value: !Ref pCreatedByTagValue
+      - Key: ManagedBy
+        Value: !Ref pManagedByTagValue
+
+  rPrivateRouteC:
+    Type: AWS::EC2::Route
+    Properties:
+      RouteTableId: !Ref rPrivateRouteTableC
+      DestinationCidrBlock: 0.0.0.0/0
+      NatGatewayId: !Ref rNATGatewayC
+
+  # Database Route Table A
+  rDatabaseRouteTableA:
+    Type: AWS::EC2::RouteTable
+    Properties:
+      VpcId: !Ref rVPC
+      Tags:
+      - Key: Name
+        Value:  !Join ['', [!Ref pPrefix, "-database-rt-a" ]]
+      - Key: CreatedBy
+        Value: !Ref pCreatedByTagValue
+      - Key: ManagedBy
+        Value: !Ref pManagedByTagValue
+
+  rDatabaseRouteA:
+    Type: AWS::EC2::Route
+    Properties:
+      RouteTableId: !Ref rDatabaseRouteTableA
+      DestinationCidrBlock: 0.0.0.0/0
+      NatGatewayId: !Ref rNATGatewayA
+
+  # Database Route Table B
+  rDatabaseRouteTableB:
+    Type: AWS::EC2::RouteTable
+    Properties:
+      VpcId: !Ref rVPC
+      Tags:
+      - Key: Name
+        Value:  !Join ['', [!Ref pPrefix, "-database-rt-b" ]]
+      - Key: CreatedBy
+        Value: !Ref pCreatedByTagValue
+      - Key: ManagedBy
+        Value: !Ref pManagedByTagValue
+
+  rDatabaseRouteB:
+    Type: AWS::EC2::Route
+    Properties:
+      RouteTableId: !Ref rDatabaseRouteTableB
+      DestinationCidrBlock: 0.0.0.0/0
+      NatGatewayId: !Ref rNATGatewayB
+
+  # Database Route Table C
+  rDatabaseRouteTableC:
+    Type: AWS::EC2::RouteTable
+    Properties:
+      VpcId: !Ref rVPC
+      Tags:
+      - Key: Name
+        Value:  !Join ['', [!Ref pPrefix, "-database-rt-c" ]]
+      - Key: CreatedBy
+        Value: !Ref pCreatedByTagValue
+      - Key: ManagedBy
+        Value: !Ref pManagedByTagValue
+
+  rDatabaseRouteC:
+    Type: AWS::EC2::Route
+    Properties:
+      RouteTableId: !Ref rDatabaseRouteTableC
+      DestinationCidrBlock: 0.0.0.0/0
+      NatGatewayId: !Ref rNATGatewayC
+  
+  # Attach Public subnets to Public route table:   
+  rPublicSubnetARouteTableAssociation:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties:
+      SubnetId: !Ref rPublicSubnetA
+      RouteTableId: !Ref rPublicRouteTable
+  rPublicSubnetBRouteTableAssociation:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties:
+      SubnetId: !Ref rPublicSubnetB
+      RouteTableId: !Ref rPublicRouteTable
+  rPublicSubnetCRouteTableAssociation:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties:
+      SubnetId: !Ref rPublicSubnetC
+      RouteTableId: !Ref rPublicRouteTable
+
+  # Attach Private subnets to Private route table:   
+  rPrivateSubnetARouteTableAssociation:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties:
+      SubnetId: !Ref rPrivateSubnetA
+      RouteTableId: !Ref rPrivateRouteTableA
+  rPrivateSubnetBRouteTableAssociation:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties:
+      SubnetId: !Ref rPrivateSubnetB
+      RouteTableId: !Ref rPrivateRouteTableB
+  rPrivateSubnetCRouteTableAssociation:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties:
+      SubnetId: !Ref rPrivateSubnetC
+      RouteTableId: !Ref rPrivateRouteTableC
+
+  # Attach Database subnets to Database route tables:   
+  rDatabaseSubnetARouteTableAssociation:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties:
+      SubnetId: !Ref rDatabaseSubnetA
+      RouteTableId: !Ref rDatabaseRouteTableA
+  rDatabaseSubnetBRouteTableAssociation:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties:
+      SubnetId: !Ref rDatabaseSubnetB
+      RouteTableId: !Ref rDatabaseRouteTableB
+  rDatabaseSubnetCRouteTableAssociation:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties:
+      SubnetId: !Ref rDatabaseSubnetC
+      RouteTableId: !Ref rDatabaseRouteTableC
+
+######################
+# VPC Flow Logs
+######################
+  rLogBucket:
+    Type: 'AWS::S3::Bucket'
+    Properties: 
+      BucketName: !Join ['-', [!Ref 'AWS::AccountId', !Ref 'AWS::Region', !Ref pEnvironmentName, 'vpc-flowlogs']]
+      Tags:
+      - Key: CreatedBy
+        Value: !Ref pCreatedByTagValue
+      - Key: ManagedBy
+        Value: !Ref pManagedByTagValue
+  rLogBucketPolicy:
+    Type: 'AWS::S3::BucketPolicy'
+    Properties:
+      Bucket: !Ref rLogBucket
+      PolicyDocument:
+        Version: '2012-10-17'
+        Statement: # https://docs.aws.amazon.com/vpc/latest/userguide/flow-logs-s3.html#flow-logs-s3-permissions
+        - Sid: AWSLogDeliveryWrite
+          Effect: Allow
+          Principal:
+            Service: 'delivery.logs.amazonaws.com'
+          Action: 's3:PutObject'
+          Resource: !Sub '${rLogBucket.Arn}/AWSLogs/${AWS::AccountId}/*'
+          Condition:
+            StringEquals:
+              's3:x-amz-acl': 'bucket-owner-full-control'
+        - Sid: AWSLogDeliveryAclCheck
+          Effect: Allow
+          Principal:
+            Service: 'delivery.logs.amazonaws.com'
+          Action: 's3:GetBucketAcl'
+          Resource: !GetAtt 'rLogBucket.Arn'
+        - Sid: AllowSSLRequestsOnly
+          Effect: Deny
+          Principal: '*'
+          Action: 's3:*'
+          Resource:
+          - !GetAtt 'rLogBucket.Arn'
+          - !Sub '${rLogBucket.Arn}/*'
+          Condition:
+            Bool:
+              'aws:SecureTransport': false
+  rFlowLogs:
+    Type: AWS::EC2::FlowLog
+    Properties:
+      LogDestinationType: 's3'
+      # LogDestination: !If [CreateFlowlogsBucket, !GetAtt 'rLogBucket.Arn', !Join ['', ['arn:aws:s3:::', !Ref 'AWS::AccountId', '-', !Ref pEnvironmentName, '-flowlogs-bucket']]]
+      LogDestination: !GetAtt 'rLogBucket.Arn'
+      ResourceId: !Ref rVPC
+      ResourceType: VPC
+      TrafficType: ALL
+      Tags:
+      - Key: Name
+        Value:  !Join ['', [!Ref pPrefix, "-", !Ref pEnvironmentName, "-flowlogs" ]]
